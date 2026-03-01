@@ -11,6 +11,7 @@ import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.text.TextComponentString;
 import org.lwjgl.input.Keyboard;
 
@@ -19,50 +20,71 @@ public class SafeWalkerMod {
 
     public static final String MODID = "safewalker";
     public static final String NAME = "Safe Walker";
-    public static final String VERSION = "1.0";
+    public static final String VERSION = "1.1"; // Повысил версию
 
     public static KeyBinding keyBind;
     private static boolean isActive = false;
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
-        // Создаем и регистрируем клавишу
         keyBind = new KeyBinding("key.safewalker.activate", Keyboard.KEY_V, "key.categories.movement");
         ClientRegistry.registerKeyBinding(keyBind);
-        
-        // ВАЖНО: Регистрируем этот класс для получения событий
         MinecraftForge.EVENT_BUS.register(this);
-        
-        System.out.println("SafeWalker Mod загружен и зарегистрирован!");
+        System.out.println("SafeWalker Mod v1.1 загружен!");
     }
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        // Проверяем, что это клиент и наш игрок
         if (event.phase == TickEvent.Phase.END && event.player.world.isRemote && event.player == Minecraft.getMinecraft().player) {
             if (isActive) {
                 EntityPlayer player = event.player;
-
-                if (player.onGround && !player.isSneaking()) {
-                    if (isBlockEdgeAhead(player)) {
+                
+                // Проверяем, стоит ли игрок на земле
+                if (player.onGround) {
+                    // Получаем позицию блока ПОД ногами игрока
+                    BlockPos playerPos = new BlockPos(player.posX, player.posY - 0.1, player.posZ);
+                    
+                    // Проверяем края ВОКРУГ игрока (со всех 4 сторон)
+                    boolean dangerNorth = isBlockEdge(player, playerPos.north());
+                    boolean dangerSouth = isBlockEdge(player, playerPos.south());
+                    boolean dangerEast = isBlockEdge(player, playerPos.east());
+                    boolean dangerWest = isBlockEdge(player, playerPos.west());
+                    
+                    // Проверяем диагональные направления (для полной блокировки)
+                    boolean dangerNorthWest = isBlockEdge(player, playerPos.north().west());
+                    boolean dangerNorthEast = isBlockEdge(player, playerPos.north().east());
+                    boolean dangerSouthWest = isBlockEdge(player, playerPos.south().west());
+                    boolean dangerSouthEast = isBlockEdge(player, playerPos.south().east());
+                    
+                    // Если есть опасность с любой стороны - блокируем движение
+                    if (dangerNorth || dangerSouth || dangerEast || dangerWest ||
+                        dangerNorthWest || dangerNorthEast || dangerSouthWest || dangerSouthEast) {
+                        
+                        // Полная остановка движения
                         player.motionX = 0;
                         player.motionZ = 0;
+                        
+                        // НЕбольшая коррекция позиции, чтобы игрок не "проваливался"
+                        if (dangerNorth && player.motionZ < 0) player.motionZ = 0;
+                        if (dangerSouth && player.motionZ > 0) player.motionZ = 0;
+                        if (dangerWest && player.motionX < 0) player.motionX = 0;
+                        if (dangerEast && player.motionX > 0) player.motionX = 0;
                     }
                 }
             }
         }
     }
 
-    private boolean isBlockEdgeAhead(EntityPlayer player) {
-        double yaw = Math.toRadians(player.rotationYaw);
-        double dirX = -Math.sin(yaw);
-        double dirZ = Math.cos(yaw);
-
-        double checkX = player.posX + dirX * 0.3;
-        double checkY = player.posY - 0.5;
-        double checkZ = player.posZ + dirZ * 0.3;
-
-        return player.world.isAirBlock(new BlockPos(checkX, checkY, checkZ));
+    private boolean isBlockEdge(EntityPlayer player, BlockPos checkPos) {
+        // Проверяем, есть ли блок под проверяемой позицией
+        BlockPos blockBelow = checkPos.down();
+        
+        // Если блок под проверяемой позицией - воздух, значит это край
+        if (player.world.isAirBlock(blockBelow)) {
+            return true;
+        }
+        
+        return false;
     }
 
     @SubscribeEvent
