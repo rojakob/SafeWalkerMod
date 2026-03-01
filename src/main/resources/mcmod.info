@@ -1,0 +1,10 @@
+[
+{
+  "modid": "safewalker",
+  "name": "Safe Walker",
+  "description": "Защита от падения с края блоков по нажатию V",
+  "version": "1.0",
+  "mcversion": "1.12.2",
+  "authorList": ["You"]
+}
+]
