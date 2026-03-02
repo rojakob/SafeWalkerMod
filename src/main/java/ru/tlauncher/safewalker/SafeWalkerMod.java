@@ -9,6 +9,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
@@ -19,7 +20,7 @@ public class SafeWalkerMod {
 
     public static final String MODID = "safewalker";
     public static final String NAME = "Safe Walker";
-    public static final String VERSION = "1.3";
+    public static final String VERSION = "1.4";
 
     public static KeyBinding keyBind;
     private static boolean isActive = false;
@@ -29,51 +30,52 @@ public class SafeWalkerMod {
         keyBind = new KeyBinding("key.safewalker.activate", Keyboard.KEY_V, "key.categories.movement");
         ClientRegistry.registerKeyBinding(keyBind);
         MinecraftForge.EVENT_BUS.register(this);
-        System.out.println("SafeWalker Mod v1.3 загружен!");
+        System.out.println("SafeWalker Mod v1.4 загружен!");
     }
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        // Проверяем, что это клиентский тик и игрок — наш
         if (event.phase == TickEvent.Phase.END && event.player.world.isRemote && event.player == Minecraft.getMinecraft().player) {
             if (isActive) {
                 EntityPlayer player = event.player;
+                // Приводим к клиентскому игроку, чтобы получить movementInput
+                if (!(player instanceof EntityPlayerSP)) return;
+                EntityPlayerSP playerSP = (EntityPlayerSP) player;
 
                 // Работает только когда игрок на земле и не крадётся (чтобы можно было спрыгнуть с Shift)
                 if (player.onGround && !player.isSneaking()) {
                     // Получаем направление взгляда игрока
                     float yaw = player.rotationYaw;
-                    
-                    // Получаем нажатия клавиш (WASD)
-                    // moveForward: положительное = вперёд, отрицательное = назад
-                    // moveStrafe: положительное = вправо, отрицательное = влево
-                    float forward = player.movementInput.moveForward;
-                    float strafe = player.movementInput.moveStrafe;
-                    
+
+                    // Получаем нажатия клавиш (WASD) через movementInput клиентского игрока
+                    float forward = playerSP.movementInput.moveForward;
+                    float strafe = playerSP.movementInput.moveStrafe;
+
                     // Если игрок не нажимает клавиши движения — пропускаем
                     if (forward == 0 && strafe == 0) return;
-                    
+
                     // Вычисляем вектор направления движения на основе угла обзора и нажатий
-                    // Это стандартная формула, используемая в Minecraft
                     float sin = (float) Math.sin(Math.toRadians(yaw));
                     float cos = (float) Math.cos(Math.toRadians(yaw));
-                    
+
                     double dirX = strafe * cos - forward * sin;
                     double dirZ = forward * cos + strafe * sin;
-                    
+
                     // Нормализуем вектор (для диагоналей)
                     double length = Math.sqrt(dirX * dirX + dirZ * dirZ);
-                    if (length < 0.001) return; // защита от деления на ноль
-                    
+                    if (length < 0.001) return;
+
                     dirX /= length;
                     dirZ /= length;
-                    
+
                     // Координаты блока, в который игрок собирается шагнуть (на уровне ног)
                     double checkX = player.posX + dirX * 0.3;
-                    double checkY = player.posY - 0.5; // уровень ног (чуть ниже пояса)
+                    double checkY = player.posY - 0.5; // уровень ног
                     double checkZ = player.posZ + dirZ * 0.3;
-                    
+
                     BlockPos checkPos = new BlockPos(checkX, checkY, checkZ);
-                    
+
                     // Если в этом месте воздух — это край, останавливаем игрока
                     if (player.world.isAirBlock(checkPos)) {
                         player.motionX = 0;
