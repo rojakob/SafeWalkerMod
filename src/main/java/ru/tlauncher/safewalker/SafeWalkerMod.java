@@ -19,7 +19,7 @@ public class SafeWalkerMod {
 
     public static final String MODID = "safewalker";
     public static final String NAME = "Safe Walker";
-    public static final String VERSION = "1.2";
+    public static final String VERSION = "1.3";
 
     public static KeyBinding keyBind;
     private static boolean isActive = false;
@@ -29,7 +29,7 @@ public class SafeWalkerMod {
         keyBind = new KeyBinding("key.safewalker.activate", Keyboard.KEY_V, "key.categories.movement");
         ClientRegistry.registerKeyBinding(keyBind);
         MinecraftForge.EVENT_BUS.register(this);
-        System.out.println("SafeWalker Mod v1.2 загружен!");
+        System.out.println("SafeWalker Mod v1.3 загружен!");
     }
 
     @SubscribeEvent
@@ -37,36 +37,47 @@ public class SafeWalkerMod {
         if (event.phase == TickEvent.Phase.END && event.player.world.isRemote && event.player == Minecraft.getMinecraft().player) {
             if (isActive) {
                 EntityPlayer player = event.player;
-                
+
                 // Работает только когда игрок на земле и не крадётся (чтобы можно было спрыгнуть с Shift)
                 if (player.onGround && !player.isSneaking()) {
-                    // Получаем скорость движения игрока
-                    double motionX = player.motionX;
-                    double motionZ = player.motionZ;
-                    double speedSq = motionX * motionX + motionZ * motionZ;
+                    // Получаем направление взгляда игрока
+                    float yaw = player.rotationYaw;
                     
-                    // Если игрок движется горизонтально
-                    if (speedSq > 0.0001) {
-                        double dist = 0.3; // дистанция проверки (половина блока)
-                        double len = Math.sqrt(speedSq);
-                        // Направление движения (нормализованный вектор)
-                        double dirX = motionX / len;
-                        double dirZ = motionZ / len;
-                        
-                        // Координаты блока, куда игрок собирается ступить
-                        double checkX = player.posX + dirX * dist;
-                        double checkY = player.posY - 0.5; // уровень ног
-                        double checkZ = player.posZ + dirZ * dist;
-                        
-                        BlockPos checkPos = new BlockPos(checkX, checkY, checkZ);
-                        BlockPos blockBelow = checkPos.down(); // блок под предполагаемой позицией
-                        
-                        // Если под этим местом пустота (воздух) — это край
-                        if (player.world.isAirBlock(blockBelow)) {
-                            // Останавливаем игрока
-                            player.motionX = 0;
-                            player.motionZ = 0;
-                        }
+                    // Получаем нажатия клавиш (WASD)
+                    // moveForward: положительное = вперёд, отрицательное = назад
+                    // moveStrafe: положительное = вправо, отрицательное = влево
+                    float forward = player.movementInput.moveForward;
+                    float strafe = player.movementInput.moveStrafe;
+                    
+                    // Если игрок не нажимает клавиши движения — пропускаем
+                    if (forward == 0 && strafe == 0) return;
+                    
+                    // Вычисляем вектор направления движения на основе угла обзора и нажатий
+                    // Это стандартная формула, используемая в Minecraft
+                    float sin = (float) Math.sin(Math.toRadians(yaw));
+                    float cos = (float) Math.cos(Math.toRadians(yaw));
+                    
+                    double dirX = strafe * cos - forward * sin;
+                    double dirZ = forward * cos + strafe * sin;
+                    
+                    // Нормализуем вектор (для диагоналей)
+                    double length = Math.sqrt(dirX * dirX + dirZ * dirZ);
+                    if (length < 0.001) return; // защита от деления на ноль
+                    
+                    dirX /= length;
+                    dirZ /= length;
+                    
+                    // Координаты блока, в который игрок собирается шагнуть (на уровне ног)
+                    double checkX = player.posX + dirX * 0.3;
+                    double checkY = player.posY - 0.5; // уровень ног (чуть ниже пояса)
+                    double checkZ = player.posZ + dirZ * 0.3;
+                    
+                    BlockPos checkPos = new BlockPos(checkX, checkY, checkZ);
+                    
+                    // Если в этом месте воздух — это край, останавливаем игрока
+                    if (player.world.isAirBlock(checkPos)) {
+                        player.motionX = 0;
+                        player.motionZ = 0;
                     }
                 }
             }
