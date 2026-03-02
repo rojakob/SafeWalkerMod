@@ -12,7 +12,6 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
-import net.minecraft.init.Blocks;
 import org.lwjgl.input.Keyboard;
 
 @Mod(modid = SafeWalkerMod.MODID, name = SafeWalkerMod.NAME, version = SafeWalkerMod.VERSION)
@@ -20,7 +19,7 @@ public class SafeWalkerMod {
 
     public static final String MODID = "safewalker";
     public static final String NAME = "Safe Walker";
-    public static final String VERSION = "2.1"; // небольшая версия
+    public static final String VERSION = "3.0"; // Финальная версия с ручным управлением
 
     public static KeyBinding keyBind;
     private static boolean isActive = false;
@@ -32,7 +31,7 @@ public class SafeWalkerMod {
         keyBind = new KeyBinding("key.safewalker.activate", Keyboard.KEY_V, "key.categories.movement");
         ClientRegistry.registerKeyBinding(keyBind);
         MinecraftForge.EVENT_BUS.register(this);
-        System.out.println("SafeWalker Mod v2.1 загружен!");
+        System.out.println("SafeWalker Mod v3.0 (ручное управление) загружен!");
     }
 
     @SubscribeEvent
@@ -57,13 +56,7 @@ public class SafeWalkerMod {
 
             if (!isActive) return;
 
-            // Автоотключение при падении (можно оставить или убрать позже)
-            if (player.fallDistance > 0.4f) {
-                isActive = false;
-                mc.player.sendMessage(new TextComponentString("SafeWalker: §cВыключен (падение)"));
-                return;
-            }
-
+            // Проверяем блок под ногами
             BlockPos posBelow = new BlockPos(player.posX, player.posY - 1.0, player.posZ);
             boolean isAirBelow = player.world.isAirBlock(posBelow);
 
@@ -76,6 +69,7 @@ public class SafeWalkerMod {
     private void applySneakState(Minecraft mc) {
         if (mc.player == null) return;
 
+        // Если игрок сам зажал Shift — не вмешиваемся
         if (userSneaking) {
             return;
         }
