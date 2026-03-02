@@ -96,13 +96,3 @@ public class SafeWalkerMod {
         int sneakKeyCode = mc.gameSettings.keyBindSneak.getKeyCode();
         KeyBinding.setKeyBindState(sneakKeyCode, safewalkSneaking);
     }
-
-    // ===== Автоотключение при прыжке =====
-    @SubscribeEvent
-    public void onLivingJump(LivingJumpEvent event) {
-        if (event.getEntity() == Minecraft.getMinecraft().player && isActive) {
-            isActive = false;
-            Minecraft.getMinecraft().player.sendMessage(new TextComponentString("SafeWalker: §cВыключен (прыжок)"));
-        }
-    }
-}
